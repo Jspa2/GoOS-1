@@ -28,7 +28,7 @@ namespace GoOS
 
         private static readonly List<string> categoryButtonsAdvancedMenu = new List<string>
         {
-            "Format",
+            "Format"
         };
 
         private static readonly List<string> categoryButtonsInfoMenu = new List<string>
@@ -103,7 +103,7 @@ namespace GoOS
                 ShowMenu(menuToShow, categorieToShow, true);
                 Console.Render();
 
-                ConsoleKey key = System.Console.ReadKey(true).Key;
+                ConsoleKey key = Console.ReadKey(true).Key;
                 switch (key)
                 {
                     case ConsoleKey.Escape:

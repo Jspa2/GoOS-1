@@ -1,7 +1,7 @@
 
-    /////// ekeleze ///////
-    // I hate xrc2 code. // 
-    ///////////////////////
+/////// ekeleze ///////
+// I hate xrc2 code. // 
+///////////////////////
 
 using Cosmos.HAL;
 using Cosmos.System.Network.Config;
@@ -9,6 +9,7 @@ using Cosmos.System.Network.IPv4;
 using Cosmos.System.Network.IPv4.TCP;
 using Cosmos.System.Network.IPv4.UDP.DHCP;
 using System;
+using System.Collections.Generic;
 using Sys = Cosmos.System;
 using System.IO;
 using System.Text;
@@ -20,6 +21,10 @@ using static GoOS.Core;
 using System.Threading;
 using PrismAPI.Graphics;
 using IL2CPU.API.Attribs;
+using PrismAPI.Hardware.GPU;
+using GoOS.GUI;
+using GoOS.GUI.Apps;
+using GoOS.Networking;
 
 // Goplex Studios - GoOS
 // Copyright (C) 2022  Owen2k6
@@ -28,10 +33,15 @@ namespace GoOS
 {
     public class Kernel : Sys.Kernel
     {
+
+        public static Dictionary<string, string> InstalledPrograms = new Dictionary<string, string>() { };
+
+        public static bool isGCIenabled = false;
+
         //Vars for OS
         public static string version = "1.5";
         public static string BuildType = "Beta";
-        
+
         //We dont even use these 2 vars anymore
         // Who cares -ekeleze
         public bool cmdm = true;
@@ -61,7 +71,12 @@ namespace GoOS
 
         protected override void BeforeRun()
         {
+            WindowManager.Canvas = Display.GetDisplay(800, 600); //TODO: Not have this hard coded >:^(
             Console.Init(800, 600);
+
+            var loadingDialogue = new LoadingDialogue("GoOS is starting\nPlease wait...");
+            WindowManager.AddWindow(loadingDialogue);
+
             ThemeManager.SetTheme(Theme.Fallback);
             log(ThemeManager.WindowText, "GoOS - Starting GoOS...");
             try
@@ -78,12 +93,29 @@ namespace GoOS
                 log(ThemeManager.ErrorText, "GoOS - Please verify that your hard disk is plugged in correctly.");
                 while (true) { }
             }
+            
 
             if (!File.Exists(@"0:\content\sys\setup.gms"))
             {
-                Console.Init(800, 600);
+                Console.ConsoleMode = true;
+                WindowManager.AddWindow(new GTerm());
                 Console.WriteLine("First boot... This may take awhile...");
                 OOBE.Launch();
+            }
+
+            if (!Directory.Exists(@"0:\content\GCI\"))
+            {
+                try
+                {
+                    Directory.CreateDirectory(@"0:\content\GCI\");
+                }
+                catch (Exception)
+                {
+                    if (File.Exists(@"0:\content\sys\GCI.gms"))
+                    {
+                        File.Delete(@"0:\content\sys\GCI.gms");
+                    }
+                }
             }
 
             try
@@ -110,8 +142,8 @@ namespace GoOS
                     }
                 }
 
-                byte videoMode = File.ReadAllBytes(@"0:\content\sys\resolution.gms")[0];
-                Console.Init(ControlPanel.videoModes[videoMode].Item2.Width, ControlPanel.videoModes[videoMode].Item2.Height);
+                //byte videoMode = File.ReadAllBytes(@"0:\content\sys\resolution.gms")[0];
+                //Console.Init(ControlPanel.videoModes[videoMode].Item2.Width, ControlPanel.videoModes[videoMode].Item2.Height);
             }
             catch
             {
@@ -127,6 +159,12 @@ namespace GoOS
             {
                 computername = "GoOS";
             }
+
+            loadingDialogue.Closing = true;
+            WindowManager.Canvas = Display.GetDisplay(1280, 720);
+            WindowManager.AddWindow(new Taskbar());
+            WindowManager.AddWindow(new DesktopIcons());
+            WindowManager.AddWindow(new Welcome());
 
             Console.Clear();
 
@@ -163,8 +201,17 @@ namespace GoOS
             textcolour(ThemeManager.Default);
         }
 
+
+
         protected override void Run()
         {
+            isGCIenabled = File.Exists(@"0:\content\sys\GCI.gms");
+
+            if (isGCIenabled)
+            {
+                GoCodeInstaller.CheckForInstalledPrograms();
+            }
+
             DrawPrompt();
 
             // Commands section
@@ -176,6 +223,82 @@ namespace GoOS
 
             switch (args[0])
             {
+                case "exit":
+                    Console.Visible = false;
+                    break;
+                case "ping":
+                    Ping.Run();
+                    break;
+                case "install":
+                    if (args.Length < 2)
+                    {
+                        log(ThemeManager.ErrorText, "Missing arguments!");
+                        break;
+                    }
+                    if (args.Length > 2)
+                    {
+                        log(ThemeManager.ErrorText, "Too many arguments!");
+                        break;
+                    }
+
+                    GoCodeInstaller.Install(args[1]);
+                    break;
+                case "uninstall":
+                    if (args.Length < 2)
+                    {
+                        log(ThemeManager.ErrorText, "Missing arguments!");
+                        break;
+                    }
+                    if (args.Length > 2)
+                    {
+                        log(ThemeManager.ErrorText, "Too many arguments!");
+                        break;
+                    }
+
+                    GoCodeInstaller.Uninstall(args[1]);
+                    break;
+                case "movefile":
+                    if (args.Length < 3)
+                    {
+                        log(ThemeManager.ErrorText, "Missing arguments!");
+                        break;
+                    }
+                    if (args.Length > 3)
+                    {
+                        log(ThemeManager.ErrorText, "Too many arguments!");
+                        break;
+                    }
+                    try
+                    {
+                        ExtendedFilesystem.MoveFile(args[1], args[2]);
+                    }
+                    catch (Exception e)
+                    {
+                        System.Console.WriteLine("Error whilst trying to move file: " + e);
+                        break;
+                    }
+                    break;
+                case "copyfile":
+                    if (args.Length < 3)
+                    {
+                        log(ThemeManager.ErrorText, "Missing arguments!");
+                        break;
+                    }
+                    if (args.Length > 3)
+                    {
+                        log(ThemeManager.ErrorText, "Too many arguments!");
+                        break;
+                    }
+                    try
+                    {
+                        ExtendedFilesystem.CopyFile(args[1], args[2]);
+                    }
+                    catch (Exception e)
+                    {
+                        System.Console.WriteLine("Error whilst trying to copy file: " + e);
+                        break;
+                    }
+                    break;
                 case "help":
                     if (args.Length > 1)
                     {
@@ -218,8 +341,7 @@ namespace GoOS
 
                             log(ConsoleColor.Red, "3");
                             /** Send data **/
-                            xClient.Send(Encoding.ASCII.GetBytes("GET /" + filetoget +
-                                                                 ".goexe HTTP/1.1\nHost: apps.goos.owen2k6.com\n\n"));
+                            xClient.Send(Encoding.ASCII.GetBytes("GET /" + filetoget + ".goexe HTTP/1.1\nHost: apps.goos.owen2k6.com\n\n"));
 
                             /** Receive data **/
                             log(ConsoleColor.Red, "4");
@@ -405,7 +527,7 @@ namespace GoOS
                         log(ThemeManager.ErrorText, "This program has been disabled due to low ram.");
                         break;
                     }
-                    
+
                     if (args.Length > 2)
                     {
                         log(ThemeManager.ErrorText, "Too many arguments");
@@ -472,8 +594,6 @@ namespace GoOS
                     log(ThemeManager.ErrorText, "Showing Internet Information");
                     log(ThemeManager.ErrorText, NetworkConfiguration.CurrentAddress.ToString());
                     break;
-                case "gui":
-                    break;
                 case "lr":
                     if (args[1] == "get")
                     {
@@ -510,7 +630,39 @@ namespace GoOS
                     log(ThemeManager.WindowText, "4");
                     Console.WriteLine(Encoding.ASCII.GetString(test));
                     break;
+                case "dtest":
+                    Dialogue.Show("Message", "Hello world!!!");
+                    break;
                 default:
+                    if (isGCIenabled)
+                    {
+                        GoCodeInstaller.CheckForInstalledPrograms();
+                    }
+
+                    if (InstalledPrograms.ContainsKey(args[0]))
+                    {
+
+                        string rootass = @"0:\";
+
+                        string currentDIRRRRRR = Directory.GetCurrentDirectory();
+
+                        Directory.SetCurrentDirectory(rootass);
+
+                        InstalledPrograms.TryGetValue(args[0], out string locat);
+
+                        string TrueLocat = locat;
+
+                        if (locat.Contains(@"0:\"))
+                        {
+                            TrueLocat = TrueLocat.Replace(@"0:\", "");
+                        }
+
+                        Commands.Run.Main(TrueLocat);
+
+                        Directory.SetCurrentDirectory(currentDIRRRRRR);
+                        break;
+                    }
+
                     Console.WriteLine("Invalid command.");
                     break;
             }
